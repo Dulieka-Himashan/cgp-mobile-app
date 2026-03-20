@@ -1,271 +1,212 @@
-# License Plate Reader (ANPR)
+# 📷 ANPR System - License Plate Recognition
 
-Simple Automatic Number Plate Recognition system using OpenCV and Tesseract OCR.
+Automatic Number Plate Recognition system using EasyOCR and OpenCV. Detects license plates from webcam and sends them to the Smart Parking backend.
 
-## 🎯 Features
+## ✅ Features
 
-- ✅ **Webcam capture** - Real-time video feed
-- ✅ **OCR text extraction** - Tesseract-based plate recognition
-- ✅ **Image preprocessing** - Grayscale, filtering, thresholding
-- ✅ **Text validation** - Cleans and validates plate numbers
-- ✅ **Backend integration** - Sends plate to parking API
-- ✅ **Interactive UI** - Simple OpenCV window interface
+- ✅ **Real-time webcam capture** - Live video feed via OpenCV
+- ✅ **AI-based OCR** - EasyOCR with 99%+ accuracy on clear plates
+- ✅ **Multi-pass preprocessing** - Grayscale, CLAHE contrast, Otsu threshold
+- ✅ **Sri Lankan plate support** - Handles province codes and fuel type suffixes
+- ✅ **Text validation** - Cleans and validates plate numbers automatically
+- ✅ **Backend integration** - Sends plate data to Flask parking API
+- ✅ **Manual & Auto modes** - Click to scan or automatic every 2 seconds
 
 ## 📋 Prerequisites
 
-### 1. Install Tesseract OCR
-
-**macOS (Homebrew):**
-```bash
-brew install tesseract
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get update
-sudo apt-get install tesseract-ocr
-```
-
-**Windows:**
-Download and install from: https://github.com/UB-Mannheim/tesseract/wiki
-
-### 2. Verify Tesseract Installation
-
-```bash
-tesseract --version
-```
-
-You should see version information (e.g., `tesseract 5.x.x`)
-
-### 3. Find Tesseract Path
-
-**macOS (Homebrew):**
-```bash
-which tesseract
-# Usually: /opt/homebrew/bin/tesseract
-```
-
-**Linux:**
-```bash
-which tesseract
-# Usually: /usr/bin/tesseract
-```
-
-**Windows:**
-```
-C:\Program Files\Tesseract-OCR\tesseract.exe
-```
+- Python 3.12+
+- Webcam
+- Backend server running on port 5001
 
 ## 🚀 Installation
 
-### 1. Create Virtual Environment
-
+### 1. Activate Virtual Environment
 ```bash
-cd anpr
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+cd parking-system
+venv\Scripts\activate    # Windows
+source venv/bin/activate # macOS/Linux
 ```
 
-### 2. Install Python Dependencies
-
+### 2. Install Dependencies
 ```bash
-pip install -r requirements.txt
+pip install easyocr opencv-python requests numpy
 ```
 
-### 3. Configure Tesseract Path
-
-Edit `anpr_system.py` line 20 to match your Tesseract installation:
-
-```python
-# For macOS with Homebrew
-pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
-
-# For Linux
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
-
-# For Windows
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+### 3. Verify Installation
+```bash
+python -c "import easyocr; import cv2; print('All OK!')"
 ```
 
 ## 🎮 Usage
-
-### Interactive Mode (Recommended)
-
 ```bash
 # Make sure backend server is running first!
-cd anpr
-source venv/bin/activate
-python anpr_system.py
+python anpr/anpr_system.py
 ```
 
-**Controls:**
-- **SPACE** - Capture image and process plate
-- **Q** - Quit application
+**Select mode when prompted:**
 
-### Test Mode (Single Capture)
+**Mode 1 - Manual (Recommended for testing):**
+- Camera window opens
+- Click anywhere on window to scan
+- Confirm detected plate with `y` or reject with `n`
 
-```bash
-python anpr_system.py --test
-```
+**Mode 2 - Auto:**
+- Automatically scans every 2 seconds
+- Good for demo purposes
 
-This captures one image, saves it as `captured_plate.jpg`, and processes it.
+**Keyboard Controls:**
+- `E` - Switch to Entry mode
+- `X` - Switch to Exit mode
+- `Q` - Quit application
 
 ## 🔧 How It Works
 
 ### 1. Image Capture
 ```python
-# Captures frame from webcam
 cap = cv2.VideoCapture(0)
 ret, frame = cap.read()
 ```
 
-### 2. Image Preprocessing
+### 2. Multi-Pass Preprocessing
 ```python
-# Convert to grayscale
+# Pass 1: Grayscale
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# Reduce noise with bilateral filter
-gray = cv2.bilateralFilter(gray, 11, 17, 17)
+# Pass 2: CLAHE Contrast Enhancement
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+contrast = clahe.apply(gray)
 
-# Apply adaptive thresholding
-thresh = cv2.adaptiveThreshold(gray, 255, ...)
+# Pass 3: Otsu Thresholding
+_, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 ```
 
-### 3. OCR Text Extraction
+### 3. EasyOCR Text Extraction
 ```python
-# Extract text using Tesseract
-text = pytesseract.image_to_string(processed, config=custom_config)
+reader = easyocr.Reader(['en'], gpu=False)
+results = reader.readtext(
+    img,
+    allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    paragraph=False,
+    detail=1
+)
 ```
 
-### 4. Text Cleaning & Validation
+### 4. Sri Lankan Plate Cleaning
 ```python
-# Remove special characters, validate length
-plate_number = clean_plate_text(text)
+# Removes province codes (WP, CP, SP, NP...)
+# Removes fuel type (P = Petrol, D = Diesel)
+# Result: "SPQL9904" -> "QL9904" or keeps as "SPQL9904"
 ```
 
 ### 5. Send to Backend
 ```python
-# POST to vehicle entry API
 response = requests.post(
     "http://localhost:5001/api/vehicle/entry",
-    json={"vehicle_number": plate_number}
+    json={"vehicle_number": plate_number, "owner_name": "Camera"}
 )
 ```
 
-## 📊 Expected Output
-
+## 📊 Example Output
 ```
-╔════════════════════════════════════════════════════════╗
-║        License Plate Reader with OCR                  ║
-║        Powered by OpenCV + Tesseract                  ║
-╚════════════════════════════════════════════════════════╝
+🔄 Loading EasyOCR...
+Using CPU. Note: This module is much faster with a GPU.
+✅ Ready!
 
 ============================================================
-License Plate Reader - Starting...
+SMART PARKING - ANPR SYSTEM
+1. MANUAL MODE (Click to Scan)
+2. AUTO MODE (Scans every 2 seconds)
 ============================================================
-✓ Webcam initialized
+Select Mode (1 or 2): 1
+✅ MANUAL MODE SELECTED
 
-Instructions:
-  - Position license plate in front of camera
-  - Press SPACE to capture and process
-  - Press 'q' to quit
-============================================================
-
-============================================================
-📸 Capturing image at 08:52:30
-🔍 Processing image with OCR...
-✓ Plate detected: KA01AB1234
-📤 Sending to backend API...
-✅ SUCCESS!
-   Vehicle: KA01AB1234
-   Slot: A01
-   Entry Time: 2026-02-06T08:52:30.123456
-============================================================
+📸 SCANNING...
+🔍 Analyzing frame...
+🏆 Best Match: SPQL9904 (Score: 0.99)
+✅ DETECTED: SPQL9904
+   Confirm SPQL9904? (y/n): y
+📡 Sending to backend (ENTRY)...
+🎉 SUCCESS! Slot: A01
 ```
 
 ## ⚙️ Configuration
 
-### Backend URL
-Edit line 15 in `anpr_system.py`:
+Edit these values at the top of `anpr_system.py`:
 ```python
-BACKEND_URL = "http://localhost:5001/api"
-```
-
-### Camera Index
-Edit line 23 in `anpr_system.py`:
-```python
-CAMERA_INDEX = 0  # 0 = default webcam, 1 = external camera
-```
-
-### OCR Configuration
-Edit the `custom_config` in `extract_plate_text()` function:
-```python
-# --psm 7: Single text line mode
-# --psm 6: Uniform block of text
-# --psm 8: Single word
-custom_config = r'--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+BACKEND_URL = os.environ.get('BACKEND_URL', "http://localhost:5001/api")
+CAMERA_INDEX = 0         # 0 = default webcam, 1 = external camera
+AUTO_SCAN_INTERVAL = 2.0 # Seconds between auto scans
 ```
 
 ## 🐛 Troubleshooting
 
-### "tesseract is not installed"
+### "No module named easyocr"
 ```bash
-# Install Tesseract first
-brew install tesseract  # macOS
-sudo apt-get install tesseract-ocr  # Linux
+pip install easyocr
+# If still not found:
+python -m pip install easyocr
 ```
 
-### "Cannot open webcam"
+### "No module named cv2"
 ```bash
-# Check camera permissions in System Settings (macOS)
-# Try different camera index (0, 1, 2...)
-CAMERA_INDEX = 1
+pip install opencv-python-headless
+```
+
+### Conflict between opencv-python and opencv-python-headless
+```bash
+pip uninstall opencv-python
+pip install opencv-python-headless
+```
+
+### "Cannot open camera"
+```bash
+# Try different camera index
+CAMERA_INDEX = 1  # or 2
 ```
 
 ### "No plate detected"
-- Ensure good lighting
-- Position plate clearly in frame
-- Try different angles
-- Clean the camera lens
-- Adjust preprocessing parameters
+- Ensure good lighting (avoid shadows)
+- Hold plate steady inside the green rectangle
+- Keep plate 20-30cm from camera
+- Face plate directly (avoid skew angles)
+- Try using a printed plate or phone screen
 
 ### "Cannot connect to backend API"
 ```bash
-# Make sure Flask server is running
-cd ../backend
-source venv/bin/activate
+# Start backend server first
+cd backend
 python app.py
+# Wait for: Running on http://127.0.0.1:5001
 ```
 
-### Poor OCR Accuracy
-- Use better lighting (avoid shadows)
-- Ensure plate is in focus
-- Try different Tesseract PSM modes
-- Adjust preprocessing filters
-- Use higher resolution camera
+### Slow detection
+- EasyOCR loads AI models on first use (takes 30-60 seconds)
+- Subsequent scans are faster
+- GPU support would significantly speed this up
 
 ## 📝 Notes
 
-- **Plate Format**: Works best with standard format plates (6-10 characters)
-- **Lighting**: Good lighting is crucial for OCR accuracy
-- **Distance**: Keep plate 1-2 feet from camera
-- **Angle**: Face plate directly to camera (avoid skew)
-- **Backend**: Ensure backend server is running before use
+- **First scan**: Always slower due to model loading
+- **Lighting**: Critical for accuracy — bright, even lighting works best
+- **Distance**: Keep plate 20-30cm from camera
+- **Angle**: Face plate directly to camera
+- **Backend**: Must be running before starting ANPR
 
 ## 🔮 Future Enhancements
 
-- [ ] Add plate detection using Haar Cascades or YOLO
+- [ ] YOLO-based plate detection for better accuracy
+- [ ] GPU support for faster processing
 - [ ] Support multiple plate formats (different countries)
-- [ ] Add confidence score for OCR results
-- [ ] Implement plate tracking across frames
-- [ ] Add GUI with Tkinter or PyQt
-- [ ] Support video file input
-- [ ] Add database of known plates
-- [ ] Implement plate exit detection
+- [ ] Multi-camera support
+- [ ] Plate tracking across frames
+- [ ] Confidence threshold configuration
+- [ ] Save captured plate images for audit
 
 ## 📚 Dependencies
 
-- **opencv-python**: Webcam capture and image processing
-- **pytesseract**: OCR text extraction
-- **requests**: HTTP API calls
-- **Pillow**: Image manipulation support
+- **easyocr** - AI-based OCR engine (replaces Tesseract)
+- **opencv-python** - Webcam capture and image processing
+- **torch** - PyTorch backend (required by EasyOCR)
+- **requests** - HTTP API calls to backend
+- **numpy** - Image array operations
+- **Pillow** - Image manipulation support

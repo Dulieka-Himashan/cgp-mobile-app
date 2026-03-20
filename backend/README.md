@@ -1,24 +1,10 @@
-# Smart Parking System - Backend API
+# 🔧 Smart Parking System - Backend API
 
-Simple Flask backend for managing a smart parking system with SQLite database.
+Flask REST API for managing the Smart Parking System with SQLite database.
 
 ## 📋 Database Schema
 
-### 1. **Users** Table
-Stores system users (parking attendants, admins)
-```sql
-- user_id (PRIMARY KEY)
-- username (UNIQUE)
-- email (UNIQUE)
-- password_hash
-- full_name
-- role (admin/attendant)
-- is_active
-- created_at
-- last_login
-```
-
-### 2. **Vehicles** Table
+### 1. **Vehicles** Table
 Registered vehicles with wallet balance
 ```sql
 - vehicle_id (PRIMARY KEY)
@@ -29,9 +15,11 @@ Registered vehicles with wallet balance
 - wallet_balance (default: 100.0)
 - registered_at
 - last_visit
+- is_approved (0=pending, 1=approved, -1=rejected)
+- rejection_reason
 ```
 
-### 3. **Slots** Table
+### 2. **Slots** Table
 Parking slot inventory
 ```sql
 - slot_id (PRIMARY KEY)
@@ -44,8 +32,8 @@ Parking slot inventory
 - is_active (0/1)
 ```
 
-### 4. **EntryExitLogs** Table
-Complete transaction history
+### 3. **EntryExitLogs** Table
+Complete parking session history
 ```sql
 - log_id (PRIMARY KEY)
 - vehicle_number
@@ -57,24 +45,41 @@ Complete transaction history
 - wallet_balance_before
 - wallet_balance_after
 - status (active/completed)
-- created_by_user_id (FOREIGN KEY)
+```
+
+### 4. **TransactionLogs** Table
+Wallet transaction history
+```sql
+- transaction_id (PRIMARY KEY)
+- vehicle_number
+- transaction_type (CREDIT/DEBIT)
+- amount
+- balance_after
+- timestamp
 - notes
 ```
 
 ## 🚀 Installation & Setup
 
-### 1. Install Dependencies
+### 1. Activate Virtual Environment
+```bash
+cd parking-system
+venv\Scripts\activate    # Windows
+source venv/bin/activate # macOS/Linux
+```
+
+### 2. Install Dependencies
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-### 2. Run the Server
+### 3. Run the Server
 ```bash
 python app.py
 ```
 
-Server will start on `http://localhost:5000`
+✅ Server starts on `http://localhost:5001`
 
 ## 📡 API Endpoints
 
@@ -87,7 +92,7 @@ GET /api/health
 {
   "status": "success",
   "message": "Smart Parking System API is running",
-  "timestamp": "2026-02-06T08:45:00"
+  "timestamp": "2026-03-18T08:45:00"
 }
 ```
 
@@ -99,8 +104,8 @@ POST /api/vehicle/entry
 Content-Type: application/json
 
 {
-  "vehicle_number": "ABC123",
-  "owner_name": "John Doe"
+  "vehicle_number": "SPQL9904",
+  "owner_name": "Test User"
 }
 ```
 
@@ -110,16 +115,18 @@ Content-Type: application/json
   "status": "success",
   "message": "Vehicle entry recorded",
   "data": {
-    "vehicle_number": "ABC123",
+    "vehicle_number": "SPQL9904",
     "slot_number": "A01",
-    "entry_time": "2026-02-06T08:45:00"
+    "entry_time": "2026-03-18T08:45:00"
   }
 }
 ```
 
 **Error Responses:**
+- `403` - Vehicle not registered or not approved
+- `402` - Insufficient wallet balance
 - `400` - Vehicle already parked
-- `400` - No parking slots available
+- `503` - Parking lot is full
 
 ---
 
@@ -129,7 +136,7 @@ POST /api/vehicle/exit
 Content-Type: application/json
 
 {
-  "vehicle_number": "ABC123"
+  "vehicle_number": "SPQL9904"
 }
 ```
 
@@ -139,10 +146,10 @@ Content-Type: application/json
   "status": "success",
   "message": "Vehicle exit recorded",
   "data": {
-    "vehicle_number": "ABC123",
+    "vehicle_number": "SPQL9904",
     "slot_number": "A01",
-    "entry_time": "2026-02-06T08:45:00",
-    "exit_time": "2026-02-06T10:30:00",
+    "entry_time": "2026-03-18T08:45:00",
+    "exit_time": "2026-03-18T10:30:00",
     "duration_minutes": 105,
     "parking_fee": 20.0,
     "wallet_balance": 80.0
@@ -165,18 +172,7 @@ GET /api/slots
 ```json
 {
   "status": "success",
-  "data": [
-    {
-      "slot_id": 1,
-      "slot_number": "A01",
-      "slot_type": "regular",
-      "is_occupied": 1,
-      "current_vehicle_number": "ABC123",
-      "entry_time": "2026-02-06T08:45:00",
-      "floor_level": "Ground",
-      "is_active": 1
-    }
-  ],
+  "data": [...],
   "total_slots": 15,
   "occupied": 3,
   "available": 12
@@ -187,7 +183,7 @@ GET /api/slots
 
 ### Get Wallet Balance
 ```http
-GET /api/wallet/ABC123
+GET /api/wallet/SPQL9904
 ```
 
 **Response:**
@@ -195,8 +191,8 @@ GET /api/wallet/ABC123
 {
   "status": "success",
   "data": {
-    "vehicle_number": "ABC123",
-    "owner_name": "John Doe",
+    "vehicle_number": "SPQL9904",
+    "owner_name": "Test User",
     "wallet_balance": 80.0
   }
 }
@@ -210,8 +206,8 @@ POST /api/wallet/topup
 Content-Type: application/json
 
 {
-  "vehicle_number": "ABC123",
-  "amount": 50.0
+  "vehicle_number": "SPQL9904",
+  "amount": 500.0
 }
 ```
 
@@ -221,10 +217,10 @@ Content-Type: application/json
   "status": "success",
   "message": "Wallet topped up successfully",
   "data": {
-    "vehicle_number": "ABC123",
+    "vehicle_number": "SPQL9904",
     "previous_balance": 80.0,
-    "amount_added": 50.0,
-    "new_balance": 130.0
+    "amount_added": 500.0,
+    "new_balance": 580.0
   }
 }
 ```
@@ -233,58 +229,24 @@ Content-Type: application/json
 
 ### Get Vehicle History
 ```http
-GET /api/history/ABC123
+GET /api/history/SPQL9904
 ```
 
 **Response:**
 ```json
 {
   "status": "success",
-  "data": [
-    {
-      "log_id": 1,
-      "vehicle_number": "ABC123",
-      "slot_number": "A01",
-      "entry_time": "2026-02-06T08:45:00",
-      "exit_time": "2026-02-06T10:30:00",
-      "duration_minutes": 105,
-      "parking_fee": 20.0,
-      "wallet_balance_before": 100.0,
-      "wallet_balance_after": 80.0,
-      "status": "completed"
-    }
-  ],
-  "total_visits": 1
+  "data": [...],
+  "total_visits": 5
 }
 ```
+
+---
 
 ### Admin Logs
 ```http
 GET /api/admin/logs?type=entry_exit&limit=100
-```
-OR
-```http
 GET /api/admin/logs?type=transactions&limit=100
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "type": "transactions",
-  "data": [
-    {
-      "transaction_id": 1,
-      "vehicle_number": "ABC123",
-      "transaction_type": "DEBIT",
-      "amount": 20.0,
-      "balance_after": 80.0,
-      "timestamp": "2026-02-06T10:30:00",
-      "notes": "Parking Fee"
-    }
-  ],
-  "count": 1
-}
 ```
 
 ## ⚙️ Configuration
@@ -292,62 +254,55 @@ GET /api/admin/logs?type=transactions&limit=100
 ### Parking Fee
 Default: **Rs.10 per hour** (minimum 1 hour charge)
 
-Edit in `app.py`:
-```python
-PARKING_FEE_PER_HOUR = 10.0
-```
-
 ### Default Slots
 - **Ground Floor**: 10 regular slots (A01-A10)
 - **First Floor**: 5 VIP slots (B01-B05)
 
 ### Default Wallet Balance
-New vehicles get **Rs.100** initial balance
+New vehicles start with **Rs.100**
 
-### Default Admin User
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Email**: `admin@parking.com`
-
-⚠️ **Note**: Change default credentials in production!
-
-## 🗄️ Database Location
-
-SQLite database is created at:
-```
-backend/database/parking.db
-```
+### Minimum Balance Required
+**Rs.50** minimum required for entry
 
 ## 🧪 Testing with cURL
 
 ### Entry
 ```bash
-curl -X POST http://localhost:5000/api/vehicle/entry \
+curl -X POST http://localhost:5001/api/vehicle/entry \
   -H "Content-Type: application/json" \
-  -d '{"vehicle_number": "KA01AB1234", "owner_name": "John Doe"}'
+  -d '{"vehicle_number": "SPQL9904", "owner_name": "Test User"}'
 ```
 
 ### Exit
 ```bash
-curl -X POST http://localhost:5000/api/vehicle/exit \
+curl -X POST http://localhost:5001/api/vehicle/exit \
   -H "Content-Type: application/json" \
-  -d '{"vehicle_number": "KA01AB1234"}'
+  -d '{"vehicle_number": "SPQL9904"}'
 ```
 
 ### Check Slots
 ```bash
-curl http://localhost:5000/api/slots
+curl http://localhost:5001/api/slots
 ```
 
 ### Check Wallet
 ```bash
-curl http://localhost:5000/api/wallet/KA01AB1234
+curl http://localhost:5001/api/wallet/SPQL9904
 ```
+
+## 🐛 Troubleshooting
+
+- **Database errors**: Delete `database/parking.db` and restart
+- **Import errors**: Make sure virtual environment is activated
+- **Port in use**: Check nothing else is running on port 5001
+- **403 on entry**: Check vehicle `is_approved = 1` in database
+- **402 on entry**: Check vehicle `wallet_balance >= 50` in database
 
 ## 📝 Notes
 
-- All vehicle numbers are automatically converted to UPPERCASE
-- Parking fee is calculated based on duration (minimum 1 hour)
+- All vehicle numbers are automatically converted to **UPPERCASE**
+- Parking fee calculated based on duration (**minimum 1 hour**)
 - Wallet balance must be sufficient for exit
-- Database is auto-created on first run
-- CORS is enabled for frontend integration
+- Database is **auto-created** on first run
+- CORS is enabled for frontend and mobile app integration
+- Android emulator connects via `10.0.2.2:5001` instead of `localhost`
