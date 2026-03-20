@@ -135,32 +135,29 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                     const SizedBox(height: 16),
                     // Quick amounts
-                    Row(
-                      children: [100, 200, 500, 1000].map((amount) {
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: OutlinedButton(
-                              onPressed: () {
-                                _amountController.text = amount.toString();
-                              },
-                              child: Text('Rs.$amount'),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                   Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  children: [100, 200, 500, 1000].map((amount) {
+    return OutlinedButton(
+      onPressed: () {
+        _amountController.text = amount.toString();
+      },
+      child: Text('Rs.$amount'),
+    );
+  }).toList(),
+),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: 'Enter Amount (Rs.)',
-                        prefixIcon: const Icon(Icons.currency_rupee),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+  labelText: 'Enter Amount (Rs.)',
+  prefixText: 'Rs. ',
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+  ),
+),
                     ),
                     const SizedBox(height: 16),
                     if (_message.isNotEmpty)
