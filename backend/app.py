@@ -392,38 +392,41 @@ def get_vehicle_history(vehicle_number):
         'total_visits': len(history_list)
     })
 
-@app.route('/api/admin/logs', methods=['GET'])
-def get_admin_logs():
-    """
-    Get all logs (Entry/Exit OR Transactions)
-    Query Params:
-        type: 'entry_exit' (default) or 'transactions'
-        limit: number of records (default 100)
-    """
-    log_type = request.args.get('type', 'entry_exit')
-    limit = request.args.get('limit', 100)
-    
+@app.route('/api/vehicle/register', methods=['POST'])
+def register_vehicle():
+    data = request.get_json()
+    vehicle_number = data.get('vehicle_number', '').upper().strip()
+    owner_name = data.get('owner_name', '').strip()
+    vehicle_type = data.get('vehicle_type', 'car')
+    owner_phone = data.get('owner_phone', '')
+
+    if not vehicle_number or not owner_name:
+        return jsonify({'status': 'error', 'message': 'Vehicle number and owner name are required'}), 400
+
     conn = get_db_connection()
-    
-    if log_type == 'transactions':
-        logs = conn.execute(
-            'SELECT * FROM transaction_logs ORDER BY timestamp DESC LIMIT ?',
-            (limit,)
-        ).fetchall()
-    else:
-        logs = conn.execute(
-            'SELECT * FROM entry_exit_logs ORDER BY entry_time DESC LIMIT ?',
-            (limit,)
-        ).fetchall()
-        
+    existing = conn.execute('SELECT * FROM vehicles WHERE vehicle_number = ?', (vehicle_number,)).fetchone()
+
+    if existing:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Vehicle already registered'}), 409
+
+    conn.execute(
+        'INSERT INTO vehicles (vehicle_number, owner_name, owner_phone, vehicle_type, wallet_balance, is_approved) VALUES (?, ?, ?, ?, ?, ?)',
+        (vehicle_number, owner_name, owner_phone, vehicle_type, 100.0, 0)
+    )
+    conn.commit()
     conn.close()
-    
+
     return jsonify({
         'status': 'success',
-        'type': log_type,
-        'count': len(logs),
-        'data': [dict(log) for log in logs]
-    })
+        'message': 'Vehicle registered successfully! Awaiting admin approval.',
+        'data': {
+            'vehicle_number': vehicle_number,
+            'owner_name': owner_name,
+            'wallet_balance': 100.0,
+            'is_approved': 0
+        }
+    }), 201
 
 # ==================== MAIN ====================
 

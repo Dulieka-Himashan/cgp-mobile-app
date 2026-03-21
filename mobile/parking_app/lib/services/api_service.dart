@@ -54,4 +54,27 @@ class ApiService {
       return {'status': 'error', 'message': e.toString()};
     }
   }
+  // Register vehicle
+static Future<Map<String, dynamic>> registerVehicle(
+  String vehicleNumber,
+  String ownerName,
+  String vehicleType,
+  String ownerPhone,
+) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/vehicle/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'vehicle_number': vehicleNumber,
+        'owner_name': ownerName,
+        'vehicle_type': vehicleType,
+        'owner_phone': ownerPhone,
+      }),
+    );
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'status': 'error', 'message': e.toString()};
+  }
+}
 }
