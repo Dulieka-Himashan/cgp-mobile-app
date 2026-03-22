@@ -391,6 +391,28 @@ def get_vehicle_history(vehicle_number):
         'data': history_list,
         'total_visits': len(history_list)
     })
+    @app.route('/api/admin/logs', methods=['GET'])
+def get_admin_logs():
+    log_type = request.args.get('type', 'entry_exit')
+    limit = request.args.get('limit', 50)
+    conn = get_db_connection()
+    if log_type == 'transactions':
+        logs = conn.execute(
+            'SELECT * FROM transaction_logs ORDER BY timestamp DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+    else:
+        logs = conn.execute(
+            'SELECT * FROM entry_exit_logs ORDER BY entry_time DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+    conn.close()
+    return jsonify({
+        'status': 'success',
+        'type': log_type,
+        'count': len(logs),
+        'data': [dict(log) for log in logs]
+    })
 
 @app.route('/api/vehicle/register', methods=['POST'])
 def register_vehicle():

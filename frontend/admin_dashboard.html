@@ -563,6 +563,9 @@
             <div class="nav-item active" onclick="showTab('dashboard', this)">
                 <i class="fa-solid fa-chart-pie"></i> Dashboard
             </div>
+            <div class="nav-item" onclick="showTab('logs', this)">
+    <i class="fa-solid fa-list"></i> Logs
+</div>
             <div class="nav-item" onclick="showTab('vehicles_tab', this)">
                 <i class="fa-solid fa-car"></i> Vehicles
             </div>
@@ -719,6 +722,48 @@
                         <label>Minimum Wallet Balance (Rs.)</label>
                         <input type="number" id="minBalance" placeholder="e.g. 100.00">
                     </div>
+                    <!-- Logs Tab -->
+        <div id="logs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fa-solid fa-clock-rotate-left" style="color:var(--primary)"></i>
+                        Entry / Exit Logs
+                    </h3>
+                    <div style="display:flex; gap:1rem; align-items:center">
+                        <select id="logType" onchange="loadLogs()" style="background:var(--dark-light); border:1px solid var(--glass-border); color:var(--text-main); padding:0.5rem 1rem; border-radius:8px; font-family:inherit;">
+                            <option value="entry_exit">Entry/Exit Logs</option>
+                            <option value="transactions">Transaction Logs</option>
+                        </select>
+                        <div class="refresh-btn" onclick="loadLogs()">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="logsTable">
+                        <thead id="logsTableHead">
+                            <tr>
+                                <th>Vehicle</th>
+                                <th>Slot</th>
+                                <th>Entry Time</th>
+                                <th>Exit Time</th>
+                                <th>Duration</th>
+                                <th>Fee</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding:2rem; color:var(--text-mute)">
+                                    Loading logs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
                 </div>
                 <button class="btn btn-primary" onclick="updateSettings()">
                     <i class="fa-solid fa-save"></i> Save Configurations
@@ -753,16 +798,74 @@
 
             document.getElementById(tabId).classList.add('active');
             if (el) el.classList.add('active');
+            if (tabId === 'logs') loadLogs();
 
             // Update Title
             const titles = {
-                'dashboard': 'System Overview',
-                'vehicles_tab': 'Vehicle Management',
-                'users': 'User Directory',
-                'settings': 'System Settings'
-            };
+    'dashboard': 'System Overview',
+    'vehicles_tab': 'Vehicle Management',
+    'users': 'User Directory',
+    'settings': 'System Settings',
+    'logs': 'System Logs'
+};
             document.querySelector('#pageTitle h1').innerText = titles[tabId];
         }
+        async function loadLogs() {
+    const type = document.getElementById('logType').value;
+    const tbody = document.getElementById('logsTableBody');
+    const thead = document.getElementById('logsTableHead');
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-mute)">Loading...</td></tr>`;
+
+    try {
+        const res = await fetch(`${API_COMMON}/admin/logs?type=${type}&limit=50`);
+        const data = await res.json();
+
+        if (type === 'entry_exit') {
+            thead.innerHTML = `<tr>
+                <th>Vehicle</th><th>Slot</th><th>Entry Time</th>
+                <th>Exit Time</th><th>Duration</th><th>Fee</th><th>Status</th>
+            </tr>`;
+            tbody.innerHTML = data.data.map(log => `
+                <tr>
+                    <td style="font-family:'Courier New'; font-weight:700">${log.vehicle_number}</td>
+                    <td>${log.slot_number}</td>
+                    <td>${log.entry_time ? log.entry_time.substring(0,16) : '-'}</td>
+                    <td>${log.exit_time ? log.exit_time.substring(0,16) : '-'}</td>
+                    <td>${log.duration_minutes ? log.duration_minutes + ' mins' : '-'}</td>
+                    <td style="color:var(--success)">${log.parking_fee ? 'Rs.' + log.parking_fee : '-'}</td>
+                    <td>
+                        <span class="badge" style="background:${log.status === 'active' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)'}; color:${log.status === 'active' ? 'var(--success)' : '#cbd5e1'}">
+                            ${log.status ? log.status.toUpperCase() : '-'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-mute)">No logs found</td></tr>`;
+        } else {
+            thead.innerHTML = `<tr>
+                <th>Vehicle</th><th>Type</th><th>Amount</th>
+                <th>Balance After</th><th>Time</th><th>Notes</th>
+            </tr>`;
+            tbody.innerHTML = data.data.map(log => `
+                <tr>
+                    <td style="font-family:'Courier New'; font-weight:700">${log.vehicle_number}</td>
+                    <td>
+                        <span class="badge" style="background:${log.transaction_type === 'CREDIT' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color:${log.transaction_type === 'CREDIT' ? 'var(--success)' : 'var(--danger)'}">
+                            ${log.transaction_type}
+                        </span>
+                    </td>
+                    <td style="color:${log.transaction_type === 'CREDIT' ? 'var(--success)' : 'var(--danger)'}">
+                        Rs.${log.amount}
+                    </td>
+                    <td>Rs.${log.balance_after}</td>
+                    <td>${log.timestamp ? log.timestamp.substring(0,16) : '-'}</td>
+                    <td style="color:var(--text-mute)">${log.notes || '-'}</td>
+                </tr>
+            `).join('') || `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-mute)">No transactions found</td></tr>`;
+        }
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger); padding:2rem">Error loading logs</td></tr>`;
+    }
+}
 
         async function loadAll() {
             try {
