@@ -391,7 +391,7 @@ def get_vehicle_history(vehicle_number):
         'data': history_list,
         'total_visits': len(history_list)
     })
-    @app.route('/api/admin/logs', methods=['GET'])
+@app.route('/api/admin/logs', methods=['GET'])
 def get_admin_logs():
     log_type = request.args.get('type', 'entry_exit')
     limit = request.args.get('limit', 50)
