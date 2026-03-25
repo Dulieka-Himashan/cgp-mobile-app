@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:5001/api';
+  static const String baseUrl = 'https://cgp-mobile-app.onrender.com/api';
 
   // Get parking slots
   static Future<Map<String, dynamic>> getSlots() async {
