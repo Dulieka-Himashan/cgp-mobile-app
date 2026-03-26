@@ -290,8 +290,8 @@
         if (!user || user.role !== 'admin') window.location.href = 'login.html';
 
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '' || window.location.hostname.startsWith('192.168.');
-        const API_BASE = isLocal ? "http://localhost:5001/api/admin" : "https://your-backend-url.onrender.com/api/admin";
-        const API_COMMON = isLocal ? "http://localhost:5001/api" : "https://your-backend-url.onrender.com/api";
+        const API_BASE = "https://cgp-mobile-app.onrender.com/api/admin";
+        const API_COMMON = "https://cgp-mobile-app.onrender.com/api";
 
         const titles = {
             'dashboard': 'System Overview',
