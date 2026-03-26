@@ -15,7 +15,7 @@ from threading import Thread
 
 # ==================== CONFIGURATION ====================
 
-BACKEND_URL = os.environ.get('BACKEND_URL', "http://localhost:5001/api")
+BACKEND_URL = os.environ.get('BACKEND_URL', "https://cgp-mobile-app.onrender.com/api")
 CAMERA_INDEX = 0
 AUTO_SCAN_INTERVAL = 2.0  # Seconds between auto-scans
 

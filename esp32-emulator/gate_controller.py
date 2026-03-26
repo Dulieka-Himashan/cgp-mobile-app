@@ -21,7 +21,7 @@ from enum import Enum
 # ==================== CONFIGURATION ====================
 
 # Backend API configuration
-BACKEND_URL = os.environ.get('BACKEND_URL', "http://localhost:5001/api")
+BACKEND_URL = "https://cgp-mobile-app.onrender.com/api"
 
 # Gate configuration
 GATE_OPEN_DURATION = 5  # seconds to keep gate open
